@@ -2,15 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGamification } from '../hooks/useGamification';
 import { ChevronLeft, Rocket, Shield, Crosshair, Flame } from 'lucide-react';
+import { useAuthStore } from '../store/useAuthStore';
+import { getGradeTier, normalizeGrade } from '../lib/gradeUtils';
 
-function generateProblem() {
-  const m1 = Math.floor(Math.random() * 10) + 2; // 2 to 11
-  const m2 = Math.floor(Math.random() * 10) + 2; 
+function generateProblem(grade) {
+  const max = grade <= 2 ? 6 : grade === 3 ? 9 : grade === 4 ? 11 : grade === 5 ? 13 : 14;
+  const min = 2;
+  const m1 = Math.floor(Math.random() * (max - min + 1)) + min;
+  const m2 = Math.floor(Math.random() * (max - min + 1)) + min;
   return { q: `${m1} × ${m2}`, a: m1 * m2, id: Date.now() + Math.random() };
 }
 
 function MultiplicationMeteor() {
   const { addXP } = useGamification();
+  const { user } = useAuthStore();
+  const grade = normalizeGrade(user?.grade);
+  const gradeTier = getGradeTier(grade);
   const navigate = useNavigate();
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -23,7 +30,9 @@ function MultiplicationMeteor() {
   const [turretAngle, setTurretAngle] = useState(0);
   
   const inputRef = useRef(null);
-  const fallRate = Math.min(2.5, 0.3 + score / 40); // Base rate 0.3 (very slow), scales up as player gets further
+  const fallRate = Math.min(2.8, 0.2 + score / (
+    gradeTier === 1 ? 55 : gradeTier === 2 ? (grade >= 4 ? 36 : 45) : gradeTier === 3 ? 30 : 26
+  ));
 
   const startGame = () => {
     setIsPlaying(true);
@@ -45,7 +54,7 @@ function MultiplicationMeteor() {
       spawnTimer = setInterval(() => {
         setMeteors(prev => {
           if (prev.length < 5) {
-             const m = generateProblem();
+             const m = generateProblem(grade);
              return [...prev, { ...m, top: -10, left: Math.floor(Math.random() * 80) + 10 }];
           }
           return prev;
@@ -76,7 +85,7 @@ function MultiplicationMeteor() {
       }, 100); // Smoother 10fps physics rate
     } else if (health === 0 && isPlaying) {
       setIsPlaying(false);
-      addXP(score * 20, 'Multiplication Meteor', score);
+      addXP(score * 20, 'Multiplication Meteor', score, 0, 'Multiplication');
     }
     
     return () => {

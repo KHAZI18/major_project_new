@@ -41,14 +41,14 @@ export function getDB() {
 
 // ─── Progress ─────────────────────────────────────────────────────────────────
 
-export async function saveProgress(data) {
+export async function saveProgress(userId, data) {
   const db = await getDB();
-  await db.put('student_progress', { id: 'local', ...data });
+  await db.put('student_progress', { id: userId, ...data });
 }
 
-export async function loadProgress() {
+export async function loadProgress(userId) {
   const db = await getDB();
-  return db.get('student_progress', 'local');
+  return db.get('student_progress', userId);
 }
 
 // ─── Sync Queue ────────────────────────────────────────────────────────────────

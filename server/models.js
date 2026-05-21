@@ -21,12 +21,22 @@ const ProgressSchema = new mongoose.Schema({
   lastActive: { type: Date, default: Date.now },
   history: [{
     gameId: String,
+    gameName: String,
+    topic: String,
     score: Number,
     xpEarned: Number,
+    coinsEarned: Number,
     accuracy: Number,
+    date: String,
     timestamp: { type: Date, default: Date.now }
   }],
   achievements: [String],
+  assignedSupport: {
+    gameId: { type: String, default: null },
+    topic: { type: String, default: null },
+    assignedAt: { type: Date, default: null },
+    completed: { type: Boolean, default: false }
+  },
   updatedAt: { type: Date, default: Date.now }
 });
 

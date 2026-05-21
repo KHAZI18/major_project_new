@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGamification } from '../hooks/useGamification';
 import { ChevronLeft, Puzzle, Award, RefreshCcw, Check, X, Sparkles, BrainCircuit, Grid3X3 } from 'lucide-react';
+import { useAuthStore } from '../store/useAuthStore';
+import { getGradeTier, normalizeGrade } from '../lib/gradeUtils';
 
 // Generates a 3x3 Logic Matrix where the 9th cell (index 8) is the missing '?'
-function generateMatrixPattern(difficultyLevel) {
+function generateMatrixPattern(difficultyLevel, gradeTier, grade) {
   const patternTypes = ['add_rows', 'mult_rows', 'seq_grid', 'add_cols', 'sub_rows'];
-  const maxIdx = Math.min(patternTypes.length, 1 + Math.floor(difficultyLevel / 2));
+  const maxIdx = Math.min(patternTypes.length, 1 + Math.floor(difficultyLevel / 2) + Math.max(0, gradeTier - 2));
   const type = patternTypes[Math.floor(Math.random() * maxIdx)];
+  const scaleMax = (value) => (grade >= 4 ? Math.round(value * 1.2) : value);
   
   let grid = Array(9).fill(0);
   let answer;
@@ -16,8 +19,9 @@ function generateMatrixPattern(difficultyLevel) {
   if (type === 'add_rows') {
      // Row 3 = Row 1 + Row 2
      for(let r=0; r<3; r++) {
-         const a = Math.floor(Math.random() * 15) + 1;
-         const b = Math.floor(Math.random() * 15) + 1;
+       const max = scaleMax(gradeTier <= 1 ? 9 : gradeTier === 2 ? 15 : gradeTier === 3 ? 20 : 30);
+       const a = Math.floor(Math.random() * max) + 1;
+       const b = Math.floor(Math.random() * max) + 1;
          grid[r*3] = a;
          grid[r*3 + 1] = b;
          grid[r*3 + 2] = a + b;
@@ -28,8 +32,11 @@ function generateMatrixPattern(difficultyLevel) {
      
   } else if (type === 'sub_rows') {
      for(let r=0; r<3; r++) {
-         const a = Math.floor(Math.random() * 20) + 10;
-         const b = Math.floor(Math.random() * 9) + 1;
+       const aMax = scaleMax(gradeTier <= 1 ? 15 : gradeTier === 2 ? 25 : gradeTier === 3 ? 35 : 45);
+       const aMin = gradeTier <= 1 ? 8 : 10;
+       const bMax = scaleMax(gradeTier <= 1 ? 8 : gradeTier === 2 ? 12 : 15);
+       const a = Math.floor(Math.random() * (aMax - aMin + 1)) + aMin;
+       const b = Math.floor(Math.random() * bMax) + 1;
          grid[r*3] = a;
          grid[r*3 + 1] = b;
          grid[r*3 + 2] = a - b;
@@ -40,8 +47,9 @@ function generateMatrixPattern(difficultyLevel) {
      
   } else if (type === 'mult_rows') {
      for(let r=0; r<3; r++) {
-         const a = Math.floor(Math.random() * 9) + 1;
-         const b = Math.floor(Math.random() * 9) + 1;
+       const max = scaleMax(gradeTier <= 1 ? 5 : gradeTier === 2 ? 8 : gradeTier === 3 ? 10 : 12);
+       const a = Math.floor(Math.random() * max) + 1;
+       const b = Math.floor(Math.random() * max) + 1;
          grid[r*3] = a;
          grid[r*3 + 1] = b;
          grid[r*3 + 2] = a * b;
@@ -51,8 +59,10 @@ function generateMatrixPattern(difficultyLevel) {
      rule = "Column 3 is the Product of Column 1 and Column 2";
      
   } else if (type === 'seq_grid') {
-     const start = Math.floor(Math.random() * 15) + 1;
-     const step = Math.floor(Math.random() * 5) + 1;
+      const startMax = scaleMax(gradeTier <= 1 ? 10 : gradeTier === 2 ? 15 : gradeTier === 3 ? 25 : 35);
+      const stepMax = scaleMax(gradeTier <= 1 ? 3 : gradeTier === 2 ? 4 : 6);
+      const start = Math.floor(Math.random() * startMax) + 1;
+      const step = Math.floor(Math.random() * stepMax) + 1;
      for(let i=0; i<9; i++) {
         grid[i] = start + (step * i);
      }
@@ -63,8 +73,9 @@ function generateMatrixPattern(difficultyLevel) {
   } else if (type === 'add_cols') {
      // Col 3 = Col 1 + Col 2 (Vertical Logic)
      for(let c=0; c<3; c++) {
-         const a = Math.floor(Math.random() * 10) + 1;
-         const b = Math.floor(Math.random() * 10) + 1;
+       const max = scaleMax(gradeTier <= 1 ? 8 : gradeTier === 2 ? 12 : gradeTier === 3 ? 18 : 25);
+       const a = Math.floor(Math.random() * max) + 1;
+       const b = Math.floor(Math.random() * max) + 1;
          grid[c] = a;
          grid[c + 3] = b;
          grid[c + 6] = a + b;
@@ -75,8 +86,9 @@ function generateMatrixPattern(difficultyLevel) {
   }
 
   // Generate unique wrong options
+  const optionCount = grade >= 4 ? 5 : 4;
   const optSet = new Set([answer]);
-  while (optSet.size < 4) {
+  while (optSet.size < optionCount) {
       let offset = Math.floor(Math.random() * 20) - 10;
       if (offset === 0) offset = 1;
       let fake = answer + offset;
@@ -88,13 +100,16 @@ function generateMatrixPattern(difficultyLevel) {
 
 function PatternPuzzle() {
   const { addXP } = useGamification();
+  const { user } = useAuthStore();
+  const grade = normalizeGrade(user?.grade);
+  const gradeTier = getGradeTier(grade);
   const navigate = useNavigate();
 
-  const TOTAL_ROUNDS = 10;
+  const TOTAL_ROUNDS = grade <= 2 ? 8 : grade === 3 ? 10 : grade === 4 ? 12 : 14;
   const [levelTracker, setLevelTracker] = useState(1);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [currentPattern, setCurrentPattern] = useState(generateMatrixPattern(1));
+  const [currentPattern, setCurrentPattern] = useState(generateMatrixPattern(1, gradeTier, grade));
   const [feedback, setFeedback] = useState(null);
   const [gameOver, setGameOver] = useState(false);
 
@@ -103,7 +118,7 @@ function PatternPuzzle() {
     setScore(0);
     setStreak(0);
     setGameOver(false);
-    setCurrentPattern(generateMatrixPattern(1));
+    setCurrentPattern(generateMatrixPattern(1, gradeTier, grade));
     setFeedback(null);
   };
 
@@ -123,10 +138,10 @@ function PatternPuzzle() {
       setFeedback(null);
       if (levelTracker < TOTAL_ROUNDS) {
         setLevelTracker(l => l + 1);
-        setCurrentPattern(generateMatrixPattern(levelTracker + 1));
+        setCurrentPattern(generateMatrixPattern(levelTracker + 1, gradeTier, grade));
       } else {
         setGameOver(true);
-        addXP(score * 30 + (opt === currentPattern.answer ? 20 : 0), 'Grid Matrix Puzzle', score + (opt === currentPattern.answer ? 1 : 0));
+        addXP(score * 30 + (opt === currentPattern.answer ? 20 : 0), 'Grid Matrix Puzzle', score + (opt === currentPattern.answer ? 1 : 0), 0, 'Patterns');
       }
     }, 2000); // 2 seconds to read the matrix logic breakdown
   };

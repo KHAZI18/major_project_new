@@ -2,15 +2,24 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGamification } from '../hooks/useGamification';
 import { ChevronLeft, PieChart, Check, X, Award, Flame } from 'lucide-react';
+import { useAuthStore } from '../store/useAuthStore';
+import { normalizeGrade } from '../lib/gradeUtils';
 
 // Helpers for math
 function gcd(a, b) {
   return b === 0 ? a : gcd(b, a % b);
 }
 
-function generateDynamicQuestion() {
+function generateDynamicQuestion(grade) {
   // Generate a valid fraction (value < 1)
-  let d = Math.floor(Math.random() * 9) + 2; // 2 to 10
+  const denoms = grade <= 2
+    ? [2, 3, 4, 5, 6]
+    : grade === 3
+      ? [2, 3, 4, 5, 6, 8, 9, 10]
+      : grade === 4
+        ? [2, 3, 4, 5, 6, 8, 9, 10, 12]
+        : [2, 3, 4, 5, 6, 8, 9, 10, 12, 14, 16];
+  let d = denoms[Math.floor(Math.random() * denoms.length)];
   let n = Math.floor(Math.random() * (d - 1)) + 1; // 1 to d-1
   
   // Simplify
@@ -43,12 +52,15 @@ function generateDynamicQuestion() {
 
 function FractionFrenzy() {
   const { addXP } = useGamification();
+  const { user } = useAuthStore();
+  const grade = normalizeGrade(user?.grade);
+  const totalRounds = grade <= 2 ? 8 : grade === 3 ? 10 : grade === 4 ? 12 : 14;
   const navigate = useNavigate();
 
   const [questionCount, setQuestionCount] = useState(0);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [current, setCurrent] = useState(generateDynamicQuestion());
+  const [current, setCurrent] = useState(generateDynamicQuestion(grade));
   const [feedback, setFeedback] = useState(null);
   const [gameOver, setGameOver] = useState(false);
 
@@ -75,12 +87,12 @@ function FractionFrenzy() {
 
     setTimeout(() => {
       setFeedback(null);
-      if (questionCount + 1 >= 10) { // Increased to 10 rounds for more gameplay
+      if (questionCount + 1 >= totalRounds) {
         setGameOver(true);
-        addXP(score * 15 + (isCorrect ? 15 : 0), 'Fraction Frenzy', score + (isCorrect ? 1 : 0));
+        addXP(score * 15 + (isCorrect ? 15 : 0), 'Fraction Frenzy', score + (isCorrect ? 1 : 0), 0,'Fractions');
       } else {
         setQuestionCount(c => c + 1);
-        setCurrent(generateDynamicQuestion());
+        setCurrent(generateDynamicQuestion(grade));
       }
     }, 1200);
   };
@@ -119,7 +131,7 @@ function FractionFrenzy() {
             <PieChart className="text-secondary" /> Fraction Frenzy
         </h2>
         <div className="px-5 py-2 bg-secondary/20 text-secondary border border-secondary/30 rounded-full font-bold shadow-[0_0_15px_rgba(217,70,239,0.3)]">
-          Round {Math.min(questionCount + 1, 10)}/10
+          Round {Math.min(questionCount + 1, totalRounds)}/{totalRounds}
         </div>
       </header>
 

@@ -3,47 +3,78 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useGamification } from '../hooks/useGamification';
 import { ChevronLeft, Timer, Check, X, Award, Flame } from 'lucide-react';
 
-const GAME_DURATION = 30;
+import { useAuthStore } from '../store/useAuthStore';
+import { normalizeGrade } from '../lib/gradeUtils';
 
-function generateQuestion(difficulty) {
+const BASE_GAME_DURATION = 30;
+
+function generateQuestion(grade) {
   let num1, num2, op, answer;
-  if (difficulty === 'easy') {
-    // Addition and Subtraction 1-20
+  if (grade <= 2) {
     op = Math.random() > 0.5 ? '+' : '-';
-    if (op === '+') {
-      num1 = Math.floor(Math.random() * 15) + 1;
-      num2 = Math.floor(Math.random() * 15) + 1;
-      answer = num1 + num2;
-    } else {
-      num1 = Math.floor(Math.random() * 20) + 5;
-      num2 = Math.floor(Math.random() * (num1 - 1)) + 1;
-      answer = num1 - num2;
+    num1 = Math.floor(Math.random() * 15) + 1;
+    num2 = Math.floor(Math.random() * 15) + 1;
+    if (op === '-') {
+      if (num1 < num2) [num1, num2] = [num2, num1];
     }
-  } else if (difficulty === 'medium') {
-    // Multiplication 1-12
+    answer = op === '+' ? num1 + num2 : num1 - num2;
+  } else if (grade <= 4) {
     op = '×';
-    num1 = Math.floor(Math.random() * 10) + 2;
-    num2 = Math.floor(Math.random() * 10) + 2;
+    const max = grade >= 4 ? 12 : 10;
+    num1 = Math.floor(Math.random() * max) + 2;
+    num2 = Math.floor(Math.random() * max) + 2;
     answer = num1 * num2;
   } else {
-    // Division
     op = '÷';
-    num2 = Math.floor(Math.random() * 10) + 2;
-    answer = Math.floor(Math.random() * 10) + 2;
-    num1 = num2 * answer; // Ensure clean division
+    const max = grade >= 5 ? 12 : 10;
+    num2 = Math.floor(Math.random() * max) + 2;
+    answer = Math.floor(Math.random() * max) + 2;
+    num1 = num2 * answer;
   }
   return { q: `${num1} ${op} ${num2}`, a: answer };
 }
 
 function ArithmeticGame() {
+  // Top-level debug message to confirm mount
+  if (typeof window !== 'undefined') {
+    window.__ARITHMETIC_GAME_MOUNTED = true;
+  }
   const { addXP } = useGamification();
+  const { user } = useAuthStore();
+  // Fallback UI if user is missing
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center">
+        <h2 className="text-2xl font-bold text-danger mb-4">User not found</h2>
+        <p className="mb-2">You must be logged in to play Number Ninja.</p>
+        <a href="/login" className="btn btn-primary mb-4">Go to Login</a>
+        <pre className="bg-black text-white p-4 rounded-lg text-left max-w-xl mx-auto overflow-x-auto">
+          localStorage['mv_auth'] = {JSON.stringify(localStorage.getItem('mv_auth'))}
+        </pre>
+      </div>
+    );
+  }
+  // Show user object for debugging
+  if (!user.grade) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-center">
+        <h2 className="text-2xl font-bold text-danger mb-4">User object incomplete</h2>
+        <p className="mb-2">User data loaded, but missing grade property.</p>
+        <pre className="bg-black text-white p-4 rounded-lg text-left max-w-xl mx-auto overflow-x-auto">
+          {JSON.stringify(user, null, 2)}
+        </pre>
+      </div>
+    );
+  }
+  const grade = normalizeGrade(user?.grade);
+  const difficulty = grade <= 2 ? 'easy' : grade <= 4 ? 'medium' : 'hard';
+  const gameDuration = grade >= 4 ? 25 : BASE_GAME_DURATION;
   const navigate = useNavigate();
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
+  const [timeLeft, setTimeLeft] = useState(gameDuration);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
-  const [difficulty, setDifficulty] = useState('easy'); // easy, medium, hard
   const [currentQuestion, setCurrentQuestion] = useState({ q: '?', a: 0 });
   const [inputValue, setInputValue] = useState('');
   const [feedback, setFeedback] = useState(null); // 'correct' or 'wrong'
@@ -57,18 +88,18 @@ function ArithmeticGame() {
     } else if (timeLeft === 0 && isPlaying) {
       setIsPlaying(false);
       const difficultyMultiplier = difficulty === 'hard' ? 3 : difficulty === 'medium' ? 2 : 1;
-      addXP(score * 5 * difficultyMultiplier + (combo * 2), `Number Ninja (${difficulty})`, score);
+      addXP(score * 5 * difficultyMultiplier + (combo * 2), `Number Ninja (${difficulty})`, score, 0,'Arithmetic');
     }
     return () => clearTimeout(timer);
   }, [isPlaying, timeLeft, addXP, score, difficulty, combo]);
 
   const startGame = () => {
     setIsPlaying(true);
-    setTimeLeft(GAME_DURATION);
+    setTimeLeft(gameDuration);
     setScore(0);
     setCombo(0);
     setInputValue('');
-    setCurrentQuestion(generateQuestion(difficulty));
+    setCurrentQuestion(generateQuestion(grade));
     setTimeout(() => {
       if (inputRef.current) inputRef.current.focus();
     }, 100);
@@ -88,7 +119,7 @@ function ArithmeticGame() {
     }
 
     setInputValue('');
-    setCurrentQuestion(generateQuestion(difficulty));
+    setCurrentQuestion(generateQuestion(grade));
     
     setTimeout(() => setFeedback(null), 300);
   };
@@ -117,14 +148,9 @@ function ArithmeticGame() {
 
         {!isPlaying && timeLeft === GAME_DURATION && (
           <div className="animate-fade-in-up">
-            <h3 className="text-2xl mb-4 font-semibold">Select Difficulty</h3>
-            <div className="flex gap-4 justify-center mb-8">
-                <button onClick={() => setDifficulty('easy')} className={`btn ${difficulty === 'easy' ? 'btn-primary' : 'btn-glass'}`}>Easy (+ -)</button>
-                <button onClick={() => setDifficulty('medium')} className={`btn ${difficulty === 'medium' ? 'btn-primary' : 'btn-glass'}`}>Med (×)</button>
-                <button onClick={() => setDifficulty('hard')} className={`btn ${difficulty === 'hard' ? 'btn-primary' : 'btn-glass'}`}>Hard (÷)</button>
-            </div>
+            <h3 className="text-2xl mb-4 font-semibold">Difficulty: {difficulty.toUpperCase()}</h3>
             <p className="text-slate-300 mb-6">
-              Solve as many equations as you can in {GAME_DURATION} seconds. Build a combo for extra XP!
+              Solve as many equations as you can in {gameDuration} seconds. Build a combo for extra XP!
             </p>
             <button className="btn btn-primary w-full text-lg py-4" onClick={startGame}>
               Start Match

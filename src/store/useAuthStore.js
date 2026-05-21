@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { usePlayerStore } from './usePlayerStore';
 
 const STORAGE_KEY = 'mv_auth';
 
@@ -19,6 +20,31 @@ export const useAuthStore = create((set, get) => ({
   user: saved?.user || null,
   token: saved?.token || null,
 
+  async googleAuth(role, credential) {
+    try {
+      const resp = await fetch('http://localhost:5000/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential, role }),
+      });
+      if (!resp.ok) {
+        const errorData = await resp.json();
+        throw new Error(errorData.error || 'Google login failed');
+      }
+      
+      const data = await resp.json();
+      const userRole = data.user.role || role; 
+      const state = { isAuthenticated: true, role: userRole, user: data.user, token: data.token };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const userId = data.user._id || data.user.id;
+      usePlayerStore.getState().initForUser(userId);
+      set(state);
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
+  },
+
   async signup(role, userData) {
     try {
       const resp = await fetch('http://localhost:5000/api/auth/signup', {
@@ -31,6 +57,8 @@ export const useAuthStore = create((set, get) => ({
       
       const state = { isAuthenticated: true, role, user: data.user, token: data.token };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const userId = data.user._id || data.user.id;
+      usePlayerStore.getState().initForUser(userId);
       set(state);
       return { success: true };
     } catch (e) {
@@ -45,6 +73,7 @@ export const useAuthStore = create((set, get) => ({
         const user = { id: userData.id || `local_${Date.now()}`, ...userData };
         const state = { isAuthenticated: true, role, user, token: null };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        usePlayerStore.getState().initForUser(user.id);
         set(state);
         return { success: true };
       }
@@ -59,6 +88,8 @@ export const useAuthStore = create((set, get) => ({
 
       const state = { isAuthenticated: true, role, user: data.user, token: data.token };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      const userId = data.user._id || data.user.id;
+      usePlayerStore.getState().initForUser(userId);
       set(state);
       return { success: true };
     } catch (e) {
@@ -68,7 +99,30 @@ export const useAuthStore = create((set, get) => ({
 
   logout() {
     localStorage.removeItem(STORAGE_KEY);
+    usePlayerStore.getState().initForUser(null);
     set({ isAuthenticated: false, role: null, user: null, token: null });
+  },
+
+  async deleteAccount() {
+    try {
+      const state = get();
+      if (!state.token) return { success: false };
+      
+      const resp = await fetch('http://localhost:5000/api/auth/account', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${state.token}`
+        }
+      });
+      
+      if (!resp.ok) throw new Error('Failed to delete account');
+      
+      // Treat perfectly deleted account exactly as a logout on the frontend
+      state.logout();
+      return { success: true };
+    } catch (e) {
+      return { success: false, error: e.message };
+    }
   },
 
   updateUser(patch) {

@@ -2,23 +2,28 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { normalizeGrade } from '../lib/gradeUtils';
 
-function genQ() {
+function genQ(grade) {
   const ops=['+','-'];
   const op=ops[Math.floor(Math.random()*2)];
-  const a=Math.floor(Math.random()*20)-10;
-  const b=Math.floor(Math.random()*20)-10;
+  const range = grade <= 2 ? 6 : grade === 3 ? 12 : grade === 4 ? 14 : 24;
+  const a=Math.floor(Math.random()*(range * 2 + 1)) - range;
+  const b=Math.floor(Math.random()*(range * 2 + 1)) - range;
   const answer=op==='+'?a+b:a-b;
   return {a,b,op,answer};
 }
 
-const MOUNTAIN_HEIGHT=10;
-
 export default function IntegerMountain() {
-  const [q,setQ]=useState(genQ());
+  const { user } = useAuthStore();
+  const grade = normalizeGrade(user?.grade);
+  const MOUNTAIN_HEIGHT = grade <= 2 ? 6 : grade === 3 ? 8 : grade === 4 ? 10 : 12;
+  const baseTime = grade >= 4 ? 50 : 60;
+  const [q,setQ]=useState(genQ(grade));
   const [position,setPosition]=useState(5);
   const [score,setScore]=useState(0);
-  const [timeLeft,setTimeLeft]=useState(60);
+  const [timeLeft,setTimeLeft]=useState(baseTime);
   const [gameState,setGameState]=useState('playing');
   const [feedback,setFeedback]=useState(null);
   const {addXP}=usePlayerStore();
@@ -32,7 +37,7 @@ export default function IntegerMountain() {
     return()=>clearInterval(t);
   },[gameState]);
   useEffect(()=>{if(position>=MOUNTAIN_HEIGHT)setGameState('won');},[position]);
-  useEffect(()=>{if(gameState!=='playing')addXP(score,'Integer Mountain',score,Math.min(100,score));},[gameState]);
+  useEffect(()=>{if(gameState!=='playing')addXP(score,'Integer Mountain',score,Math.min(100,score),'Integers');},[gameState]);
 
   const handleSubmit=(e)=>{
     e.preventDefault();
@@ -47,7 +52,7 @@ export default function IntegerMountain() {
       setFeedback({text:`❌ Was ${q.answer}`,correct:false});
     }
     setInput('');
-    setTimeout(()=>{setFeedback(null);setQ(genQ());},500);
+    setTimeout(()=>{setFeedback(null);setQ(genQ(grade));},500);
   };
 
   const cliffPos=Math.round((position/MOUNTAIN_HEIGHT)*100);
@@ -57,7 +62,7 @@ export default function IntegerMountain() {
       <div className="w-full max-w-md mb-4 flex items-center justify-between">
         <Link to="/student" className="btn btn-glass btn-sm">← Back</Link>
         <h1 className="font-display text-xl font-bold text-gradient">⛰️ Integer Mountain</h1>
-        <div className="badge badge-primary text-xs">Grade 6</div>
+        <div className="badge badge-primary text-xs">Grade {grade}</div>
       </div>
       <div className="w-full max-w-md glass-panel p-3 mb-4 flex items-center justify-between">
         <div className="hud-chip text-yellow-400">Score: {score}</div>
@@ -128,7 +133,7 @@ export default function IntegerMountain() {
           <h2 className="font-display text-3xl font-bold mb-3">{gameState==='won'?'Summit Reached!':'Times Up!'}</h2>
           <p className="text-slate-300 mb-6">Score: <strong className="text-primary">{score}</strong></p>
           <div className="flex gap-3">
-            <button onClick={()=>{setScore(0);setTimeLeft(60);setPosition(5);setGameState('playing');setQ(genQ());setInput('');}} className="btn btn-primary flex-1">🔄 Climb Again</button>
+            <button onClick={()=>{setScore(0);setTimeLeft(baseTime);setPosition(5);setGameState('playing');setQ(genQ(grade));setInput('');}} className="btn btn-primary flex-1">🔄 Climb Again</button>
             <Link to="/student" className="btn btn-glass flex-1 no-underline">🏘️ Village</Link>
           </div>
         </motion.div>

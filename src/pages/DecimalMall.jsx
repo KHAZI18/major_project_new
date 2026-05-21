@@ -2,19 +2,31 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { useAuthStore } from '../store/useAuthStore';
+import { normalizeGrade } from '../lib/gradeUtils';
 
-function genQ() {
-  const denoms=[2,3,4,5,6,8,10];
-  const denom=denoms[Math.floor(Math.random()*denoms.length)];
+function genQ(grade) {
+  const precision = grade >= 5 ? 3 : 2;
+  const denoms = grade <= 2
+    ? [2, 4, 5, 10]
+    : grade === 3
+      ? [2, 3, 4, 5, 6, 8, 10]
+      : grade === 4
+        ? [2, 3, 4, 5, 6, 8, 10, 12]
+        : [2, 3, 4, 5, 6, 8, 10, 12, 16, 18, 20];
+  const denom = denoms[Math.floor(Math.random() * denoms.length)];
   const numer=Math.floor(Math.random()*(denom-1))+1;
-  return {numer,denom,decimal:(numer/denom).toFixed(2),pct:Math.round((numer/denom)*100)};
+  return {numer,denom,decimal:(numer/denom).toFixed(precision),pct:Math.round((numer/denom)*100),precision};
 }
 
 export default function DecimalMall() {
-  const [q,setQ]=useState(genQ());
+  const { user } = useAuthStore();
+  const grade = normalizeGrade(user?.grade);
+  const baseTime = grade >= 4 ? 50 : 60;
+  const [q,setQ]=useState(genQ(grade));
   const [input,setInput]=useState('');
   const [score,setScore]=useState(0);
-  const [timeLeft,setTimeLeft]=useState(60);
+  const [timeLeft,setTimeLeft]=useState(baseTime);
   const [gameState,setGameState]=useState('playing');
   const [feedback,setFeedback]=useState(null);
   const [combo,setCombo]=useState(0);
@@ -27,7 +39,7 @@ export default function DecimalMall() {
     const t=setInterval(()=>setTimeLeft(t=>{if(t<=1){setGameState('lost');return 0;}return t-1;}),1000);
     return()=>clearInterval(t);
   },[gameState]);
-  useEffect(()=>{if(gameState!=='playing')addXP(Math.floor(score/2),'Decimal Mall',score,Math.min(100,score));},[gameState]);
+  useEffect(()=>{if(gameState!=='playing')addXP(Math.floor(score/2),'Decimal Mall',score,Math.min(100,score),'Decimals');},[gameState]);
 
   const PRICE=Math.floor(Math.random()*50)+10;
   const [itemPrice]=useState(PRICE);
@@ -37,14 +49,15 @@ export default function DecimalMall() {
     if(gameState!=='playing')return;
     const userAns=parseFloat(input);
     const correct=parseFloat(q.decimal);
-    if(Math.abs(userAns-correct)<0.015){
+    const tolerance = q.precision === 3 ? 0.002 : 0.015;
+    if(Math.abs(userAns-correct) < tolerance){
       const pts=15+combo*3;setScore(s=>s+pts);setCombo(c=>c+1);
       setFeedback({text:`✅ Correct! +${pts}`,correct:true});
     }else{
       setCombo(0);setFeedback({text:`❌ Answer: ${q.decimal}`,correct:false});
     }
     setInput('');
-    setTimeout(()=>{setFeedback(null);setQ(genQ());},600);
+    setTimeout(()=>{setFeedback(null);setQ(genQ(grade));},600);
   };
 
   const sections=Math.min(q.denom,12);
@@ -55,7 +68,7 @@ export default function DecimalMall() {
       <div className="w-full max-w-md mb-4 flex items-center justify-between">
         <Link to="/student" className="btn btn-glass btn-sm">← Back</Link>
         <h1 className="font-display text-xl font-bold text-gradient">🛒 Decimal Mall</h1>
-        <div className="badge badge-primary text-xs">Grade 4</div>
+        <div className="badge badge-primary text-xs">Grade {grade}</div>
       </div>
       <div className="w-full max-w-md glass-panel p-3 mb-4 flex items-center justify-between">
         <div className="hud-chip text-yellow-400">Score: {score}</div>
@@ -101,7 +114,7 @@ export default function DecimalMall() {
           <h2 className="font-display text-3xl font-bold mb-3">{score>=80?'Great Shopper!':'Game Over'}</h2>
           <p className="text-slate-300 mb-6">Score: <strong className="text-primary">{score}</strong> | XP: <strong className="text-yellow-400">+{Math.floor(score/2)}</strong></p>
           <div className="flex gap-3">
-            <button onClick={()=>{setScore(0);setTimeLeft(60);setCombo(0);setGameState('playing');setQ(genQ());setInput('');}} className="btn btn-primary flex-1">🔄 Again</button>
+            <button onClick={()=>{setScore(0);setTimeLeft(baseTime);setCombo(0);setGameState('playing');setQ(genQ(grade));setInput('');}} className="btn btn-primary flex-1">🔄 Again</button>
             <Link to="/student" className="btn btn-glass flex-1 no-underline">🏘️ Village</Link>
           </div>
         </motion.div>

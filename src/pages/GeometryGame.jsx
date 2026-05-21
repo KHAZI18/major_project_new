@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGamification } from '../hooks/useGamification';
 import { ChevronLeft, Check, Award, RefreshCcw } from 'lucide-react';
+import { useAuthStore } from '../store/useAuthStore';
+import { normalizeGrade } from '../lib/gradeUtils';
 
 const SVG_BASE = { width: 64, height: 64, viewBox: "0 0 100 100", stroke: "currentColor", strokeWidth: 4, fill: "none" };
 
@@ -25,6 +27,8 @@ function shuffleArray(array) {
 
 function GeometryGame() {
   const { addXP } = useGamification();
+  const { user } = useAuthStore();
+  const grade = normalizeGrade(user?.grade);
   const navigate = useNavigate();
 
   const [shapes, setShapes] = useState([]);
@@ -40,7 +44,13 @@ function GeometryGame() {
   }, []);
 
   const initGame = () => {
-    const selectedDB = shuffleArray(ALL_SHAPES_DB).slice(0, 4); // Pick 4 random shapes per game
+    const shapeCount = grade <= 2 ? 3 : grade === 3 ? 4 : grade === 4 ? 5 : 6;
+    const shapePool = grade <= 2
+      ? ALL_SHAPES_DB.filter((s) => ['tri', 'sqr', 'cir', 'rect'].includes(s.id))
+      : grade === 3
+        ? ALL_SHAPES_DB.filter((s) => ['tri', 'sqr', 'cir', 'rect', 'hex'].includes(s.id))
+        : ALL_SHAPES_DB;
+    const selectedDB = shuffleArray(shapePool).slice(0, shapeCount);
     
     setShapes(shuffleArray(selectedDB));
     setNames(shuffleArray(selectedDB.map(s => ({ id: s.id, name: s.name }))));
@@ -58,7 +68,7 @@ function GeometryGame() {
           if (newMatches.length === shapes.length) {
             setTimeout(() => {
               setGameOver(true);
-              addXP(100, 'Geometry Explorer', 100);
+              addXP(100, 'Geometry Explorer', 100, 0, 'Geometry');
             }, 500);
           }
           return newMatches;
@@ -79,7 +89,7 @@ function GeometryGame() {
         </Link>
         <h2 className="text-xl font-semibold">Geometry Explorer</h2>
         <div className="px-4 py-2 bg-success/20 text-success rounded-full font-medium">
-          +100 XP to Win
+          Grade {grade}
         </div>
       </header>
 
