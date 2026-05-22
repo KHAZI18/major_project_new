@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { recordAttempt } from '../engine/engineAPI';
+import { skillForGame } from '../engine/gameSkills';
+
+const SKILL = skillForGame('FractionNinja'); // 'fractions-basic'
 
 function genQ() {
   const denoms=[2,3,4,5,6,8];
@@ -37,6 +41,7 @@ export default function FractionNinja() {
 
   const handleSubmit=()=>{
     const correct=slashed.size===target;
+    recordAttempt({ skillId: SKILL, correct, responseTime: 0 });
     if(correct){
       setScore(s=>s+25);setFeedback({text:'🥷 Perfect Cut!',correct:true});
     }else{

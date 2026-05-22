@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGamification } from '../hooks/useGamification';
+import { getNextDifficulty, recordAttempt } from '../engine/engineAPI';
+import { skillForGame } from '../engine/gameSkills';
 import { ChevronLeft, Timer, Check, X, Award, Flame } from 'lucide-react';
 
 const GAME_DURATION = 30;
+const SKILL = skillForGame('ArithmeticGame'); // 'addition'
 
 function generateQuestion(difficulty) {
   let num1, num2, op, answer;
@@ -43,12 +46,15 @@ function ArithmeticGame() {
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
-  const [difficulty, setDifficulty] = useState('easy'); // easy, medium, hard
+  const [difficulty, setDifficulty] = useState(() => getNextDifficulty(SKILL)); // 'easy' | 'medium' | 'hard'
   const [currentQuestion, setCurrentQuestion] = useState({ q: '?', a: 0 });
   const [inputValue, setInputValue] = useState('');
   const [feedback, setFeedback] = useState(null); // 'correct' or 'wrong'
-  
+
   const inputRef = useRef(null);
+  // Initialized to 0 (pure); the real timestamp is set in startGame() before the
+  // first question is shown, so this seed value is never read in a calculation.
+  const questionStartRef = useRef(0);
 
   useEffect(() => {
     let timer;
@@ -69,6 +75,7 @@ function ArithmeticGame() {
     setCombo(0);
     setInputValue('');
     setCurrentQuestion(generateQuestion(difficulty));
+    questionStartRef.current = Date.now();
     setTimeout(() => {
       if (inputRef.current) inputRef.current.focus();
     }, 100);
@@ -78,7 +85,11 @@ function ArithmeticGame() {
     e.preventDefault();
     if (!isPlaying) return;
 
-    if (parseInt(inputValue) === currentQuestion.a) {
+    const correct = parseInt(inputValue) === currentQuestion.a;
+    const responseTime = Date.now() - questionStartRef.current;
+    recordAttempt({ skillId: SKILL, correct, responseTime });
+
+    if (correct) {
       setScore(score + 1);
       setCombo(c => c + 1);
       setFeedback('correct');
@@ -89,7 +100,8 @@ function ArithmeticGame() {
 
     setInputValue('');
     setCurrentQuestion(generateQuestion(difficulty));
-    
+    questionStartRef.current = Date.now();
+
     setTimeout(() => setFeedback(null), 300);
   };
 

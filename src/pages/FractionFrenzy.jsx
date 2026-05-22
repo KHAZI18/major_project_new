@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGamification } from '../hooks/useGamification';
+import { recordAttempt } from '../engine/engineAPI';
+import { skillForGame } from '../engine/gameSkills';
 import { ChevronLeft, PieChart, Check, X, Award, Flame } from 'lucide-react';
+
+const SKILL = skillForGame('FractionFrenzy'); // 'fractions-basic'
 
 // Helpers for math
 function gcd(a, b) {
@@ -63,7 +67,8 @@ function FractionFrenzy() {
   const handleOptionClick = (option) => {
     if (feedback) return;
     const isCorrect = option.numerator === current.target.numerator && option.denominator === current.target.denominator;
-    
+    recordAttempt({ skillId: SKILL, correct: isCorrect, responseTime: 0 });
+
     if (isCorrect) {
       setScore(s => s + 1);
       setStreak(s => s + 1);

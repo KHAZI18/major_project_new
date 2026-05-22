@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGamification } from '../hooks/useGamification';
+import { getNextDifficulty, recordAttempt } from '../engine/engineAPI';
+import { skillForGame } from '../engine/gameSkills';
 import { ChevronLeft, Puzzle, Award, RefreshCcw, Check, X, Sparkles, BrainCircuit, Grid3X3 } from 'lucide-react';
+
+const SKILL = skillForGame('PatternPuzzle'); // 'patterns'
+const DIFFICULTY_START = { easy: 1, medium: 3, hard: 5 }; // engine string -> starting matrix difficulty
+function startLevelFromEngine() {
+  return DIFFICULTY_START[getNextDifficulty(SKILL)] ?? 1;
+}
 
 // Generates a 3x3 Logic Matrix where the 9th cell (index 8) is the missing '?'
 function generateMatrixPattern(difficultyLevel) {
@@ -91,26 +99,29 @@ function PatternPuzzle() {
   const navigate = useNavigate();
 
   const TOTAL_ROUNDS = 10;
-  const [levelTracker, setLevelTracker] = useState(1);
+  const [levelTracker, setLevelTracker] = useState(() => startLevelFromEngine());
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [currentPattern, setCurrentPattern] = useState(generateMatrixPattern(1));
+  const [currentPattern, setCurrentPattern] = useState(() => generateMatrixPattern(startLevelFromEngine()));
   const [feedback, setFeedback] = useState(null);
   const [gameOver, setGameOver] = useState(false);
 
   const initGame = () => {
-    setLevelTracker(1);
+    const start = startLevelFromEngine();
+    setLevelTracker(start);
     setScore(0);
     setStreak(0);
     setGameOver(false);
-    setCurrentPattern(generateMatrixPattern(1));
+    setCurrentPattern(generateMatrixPattern(start));
     setFeedback(null);
   };
 
   const handleSelect = (opt) => {
     if (feedback) return;
-    
-    if (opt === currentPattern.answer) {
+    const correct = opt === currentPattern.answer;
+    recordAttempt({ skillId: SKILL, correct, responseTime: 0 });
+
+    if (correct) {
       setFeedback('correct');
       setScore(s => s + 1);
       setStreak(s => s + 1);

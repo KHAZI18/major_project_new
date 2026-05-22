@@ -13,6 +13,7 @@ import {
   loadMasteryState,
   saveMasteryState,
   appendInteraction,
+  pushToSyncQueue,
 } from '../lib/db';
 
 const MASTERY_THRESHOLD = 0.85; // spec §6.3 — schedule reviews above this
@@ -87,6 +88,10 @@ export async function recordAttempt({ skillId, correct, responseTime = 0 }) {
 
   await appendInteraction({ skillId, correct, responseTime, timestamp: now });
   await saveMasteryState(s);
+  // Tell the offline sync queue that mastery changed so it ships to /api/sync.
+  // Payload key `masteryState` and shape ({ belief, attempts, lastPracticed, review })
+  // match the backend MASTERY_UPDATE handler (sibling backend-mastery-sync plan).
+  await pushToSyncQueue({ type: 'MASTERY_UPDATE', payload: { masteryState: s } });
   return mastery;
 }
 

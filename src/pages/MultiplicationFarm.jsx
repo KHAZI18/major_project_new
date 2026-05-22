@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { recordAttempt } from '../engine/engineAPI';
+import { skillForGame } from '../engine/gameSkills';
+
+const SKILL = skillForGame('MultiplicationFarm'); // 'multiplication'
 
 function genQ() {
   const rows=Math.floor(Math.random()*8)+2;
@@ -30,7 +34,9 @@ export default function MultiplicationFarm() {
   const handleAnswer=(n)=>{
     if(selected!==null)return;
     setSelected(n);
-    if(n===q.answer){
+    const correct=n===q.answer;
+    recordAttempt({ skillId: SKILL, correct, responseTime: 0 });
+    if(correct){
       setScore(s=>s+20);
       setFeedback({text:`✅ ${q.rows}×${q.cols}=${q.answer} crops!`,correct:true});
     }else{

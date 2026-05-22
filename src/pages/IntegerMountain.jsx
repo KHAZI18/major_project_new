@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { recordAttempt } from '../engine/engineAPI';
+import { skillForGame } from '../engine/gameSkills';
+
+const SKILL = skillForGame('IntegerMountain'); // 'integers'
 
 function genQ() {
   const ops=['+','-'];
@@ -38,7 +42,10 @@ export default function IntegerMountain() {
     e.preventDefault();
     if(gameState!=='playing')return;
     const val=parseInt(input,10);
-    if(val===q.answer){
+    if(Number.isNaN(val)){setInput('');return;} // empty/invalid: don't record
+    const correct=val===q.answer;
+    recordAttempt({ skillId: SKILL, correct, responseTime: 0 });
+    if(correct){
       setPosition(p=>Math.min(MOUNTAIN_HEIGHT,p+1));
       setScore(s=>s+20);
       setFeedback({text:'⛰️ Climb!',correct:true});

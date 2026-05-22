@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { usePlayerStore } from '../store/usePlayerStore';
+import { recordAttempt } from '../engine/engineAPI';
+import { skillForGame } from '../engine/gameSkills';
+
+const SKILL = skillForGame('DecimalMall'); // 'decimals'
 
 function genQ() {
   const denoms=[2,3,4,5,6,8,10];
@@ -37,7 +41,9 @@ export default function DecimalMall() {
     if(gameState!=='playing')return;
     const userAns=parseFloat(input);
     const correct=parseFloat(q.decimal);
-    if(Math.abs(userAns-correct)<0.015){
+    const isCorrect=!Number.isNaN(userAns)&&Math.abs(userAns-correct)<0.015;
+    if(!Number.isNaN(userAns)) recordAttempt({ skillId: SKILL, correct: isCorrect, responseTime: 0 });
+    if(isCorrect){
       const pts=15+combo*3;setScore(s=>s+pts);setCombo(c=>c+1);
       setFeedback({text:`✅ Correct! +${pts}`,correct:true});
     }else{

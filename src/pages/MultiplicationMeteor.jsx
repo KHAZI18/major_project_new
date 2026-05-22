@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGamification } from '../hooks/useGamification';
+import { recordAttempt } from '../engine/engineAPI';
+import { skillForGame } from '../engine/gameSkills';
 import { ChevronLeft, Rocket, Shield, Crosshair, Flame } from 'lucide-react';
+
+const SKILL = skillForGame('MultiplicationMeteor'); // 'multiplication'
 
 function generateProblem() {
   const m1 = Math.floor(Math.random() * 10) + 2; // 2 to 11
@@ -90,8 +94,11 @@ function MultiplicationMeteor() {
     if (!isPlaying) return;
     
     const ans = parseInt(inputValue);
+    if (Number.isNaN(ans)) { setInputValue(''); return; } // empty/invalid: don't record
+
     const hitMeteorIndex = meteors.findIndex(m => m.a === ans);
-    
+    recordAttempt({ skillId: SKILL, correct: hitMeteorIndex !== -1, responseTime: 0 });
+
     if (hitMeteorIndex !== -1) {
       const target = meteors[hitMeteorIndex];
       
