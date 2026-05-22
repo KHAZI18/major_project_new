@@ -9,6 +9,11 @@ import {
 import { Users, Activity, Target, TrendingUp, Star, AlertTriangle, Download, ChevronLeft, RefreshCw } from 'lucide-react';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { statusFromMastery } from '../engine/teacherSource';
+import MasteryHeatmap from '../components/MasteryHeatmap';
+import WeaknessAlerts from '../components/WeaknessAlerts';
+import FairRankTable from '../components/FairRankTable';
+import { classMastery } from '../engine/engineAPI';
 
 // ─── Mock Data ─────────────────────────────────────────────────────────────────
 const MOCK_STUDENTS = [
@@ -94,28 +99,60 @@ export default function TeacherDashboard() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [sortBy, setSortBy] = useState('xp');
+  const [classMasteryData, setClassMasteryData] = useState([]); // [{ id, name, attempts, mastery }] — bare array from /api/teacher/class-mastery (no grade)
 
   const fetchStudents = async () => {
     setLoading(true);
+    // Fetch the adaptive-engine class mastery alongside the XP roster.
+    // The backend (2026-05-22-backend-mastery-sync.md) returns a BARE ARRAY
+    // [{ id, name, attempts, mastery }] — NOT a { students: [...] } envelope.
+    let masteryById = {};
+    try {
+      const mResp = await fetch('http://localhost:5000/api/teacher/class-mastery', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (mResp.ok) {
+        const mData = await mResp.json();
+        // Consume the array directly (defensive: also accept a legacy { students } envelope).
+        const list = Array.isArray(mData) ? mData : (mData?.students ?? []);
+        setClassMasteryData(list);
+        masteryById = Object.fromEntries(list.map((s) => [s.id, s.mastery || {}]));
+      } else if (mResp.status === 401 || mResp.status === 403) {
+        // Not authenticated as a teacher (the backend guards this route by role).
+        // Fall through to the XP-status / mock-mastery path; do not crash the page.
+        console.warn('class-mastery: not authorized (', mResp.status, ') — using XP-status fallback');
+      } else {
+        console.warn('class-mastery: unexpected status', mResp.status, '— using XP-status fallback');
+      }
+    } catch (e) {
+      console.warn('class-mastery unavailable, falling back to XP status', e);
+    }
     try {
       const resp = await fetch('http://localhost:5000/api/teacher/students', {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resp.ok) {
         const data = await resp.json();
-        const mapped = data.map(s => ({
-          id: s._id,
-          name: s.name,
-          grade: s.grade,
-          avatar: s.avatar,
-          level: s.progress?.level || 1,
-          xp: s.progress?.xp || 0,
-          accuracy: Math.round(s.progress?.history?.reduce((acc, h) => acc + h.accuracy, 0) / (s.progress?.history?.length || 1)) || 0,
-          gamesPlayed: s.progress?.history?.length || 0,
-          streak: s.progress?.streak || 0,
-          lastActive: new Date(s.progress?.lastActive).toLocaleDateString(),
-          status: (s.progress?.xp > 5000) ? 'excellent' : (s.progress?.xp > 1000) ? 'good' : 'at_risk'
-        }));
+        const mapped = data.map(s => {
+          const mastery = masteryById[s._id];
+          // Mastery-based status (replaces hardcoded xp>5000); XP rule is the fallback.
+          const status = mastery
+            ? statusFromMastery(mastery)
+            : (s.progress?.xp > 5000) ? 'excellent' : (s.progress?.xp > 1000) ? 'good' : 'at_risk';
+          return {
+            id: s._id,
+            name: s.name,
+            grade: s.grade,
+            avatar: s.avatar,
+            level: s.progress?.level || 1,
+            xp: s.progress?.xp || 0,
+            accuracy: Math.round(s.progress?.history?.reduce((acc, h) => acc + h.accuracy, 0) / (s.progress?.history?.length || 1)) || 0,
+            gamesPlayed: s.progress?.history?.length || 0,
+            streak: s.progress?.streak || 0,
+            lastActive: new Date(s.progress?.lastActive).toLocaleDateString(),
+            status,
+          };
+        });
         setStudents(mapped);
       }
     } catch (e) {
@@ -130,6 +167,31 @@ export default function TeacherDashboard() {
   }, [token]);
 
   const displayStudents = students.length > 0 ? students : MOCK_STUDENTS;
+
+  // Class-mastery source for the new engine views. Falls back to a synthesized
+  // mastery map derived from each mock student's accuracy when the endpoint is
+  // empty/unauthorized (keeps the dashboard demoable offline). NOTE: the LIVE
+  // payload does NOT carry `grade`; only this offline fallback adds it (from
+  // MOCK_STUDENTS) so the heatmap's optional grade column has data in demo mode.
+  // Values are clamped to [0.02, 0.99] so a low-accuracy skill still surfaces as
+  // "weak" (weakSkills filters out mean <= 0, so we never synthesize 0/negative).
+  const clamp = (v) => Math.max(0.02, Math.min(0.99, v));
+  const displayMastery = classMasteryData.length > 0
+    ? classMasteryData
+    : MOCK_STUDENTS.map((s) => ({
+        id: s.id,
+        name: s.name,
+        grade: s.grade,
+        attempts: s.gamesPlayed,
+        mastery: {
+          addition: clamp(s.accuracy / 100),
+          subtraction: clamp((s.accuracy - 5) / 100),
+          multiplication: clamp((s.accuracy - 10) / 100),
+          'fractions-basic': clamp((s.accuracy - 20) / 100),
+          patterns: clamp((s.accuracy - 8) / 100),
+        },
+      }));
+  const classAgg = displayMastery.length ? classMastery(displayMastery) : { perSkill: {}, ranking: [] };
 
   const atRisk = displayStudents.filter((s) => s.status === 'at_risk').length;
   const avgAccuracy = Math.round(displayStudents.reduce((a, b) => a + (b.accuracy || 0), 0) / (displayStudents.length || 1));
@@ -308,8 +370,18 @@ export default function TeacherDashboard() {
         </motion.div>
       </div>
 
+      {/* Adaptive Engine: per-skill mastery heatmap (full width) */}
+      <div className="mb-10">
+        <MasteryHeatmap students={displayMastery} />
+      </div>
+
+      {/* Adaptive Engine: per-skill weakness alerts (full width) */}
+      <div className="mb-10">
+        <WeaknessAlerts perSkill={classAgg.perSkill} students={displayMastery} />
+      </div>
+
       {/* Student Table */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} 
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
         className="bg-white rounded-[40px] p-8 shadow-sm border border-slate-50 overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
           <h3 className="font-display font-black text-3xl text-[#1e293b]">Class Roster</h3>
@@ -415,6 +487,11 @@ export default function TeacherDashboard() {
           )}
         </div>
       </motion.div>
+
+      {/* Adaptive Engine: fair-rank table (shown NEXT TO / below the XP roster, not replacing it) */}
+      <div className="mt-10">
+        <FairRankTable students={displayMastery} />
+      </div>
     </div>
   );
 }
