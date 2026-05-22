@@ -12,6 +12,7 @@ import FairLeaderboard from '../components/FairLeaderboard';
 import SuggestedForYou from '../components/SuggestedForYou';
 import ReviewPrompts from '../components/ReviewPrompts';
 import MasteryChart from '../components/MasteryChart';
+import AdaptiveDifficulty from '../components/AdaptiveDifficulty';
 import BadgeDisplay from '../components/BadgeDisplay';
 import LevelUpModal from '../components/LevelUpModal';
 
@@ -388,6 +389,11 @@ export default function StudentDashboard() {
           {/* Per-skill mastery mini-chart (Adaptive Engine) */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
             <MasteryChart />
+          </motion.div>
+
+          {/* Adaptive difficulty meter — shows how the ML raised difficulty vs the old fixed games */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.48 }}>
+            <AdaptiveDifficulty />
           </motion.div>
 
           {/* Badges */}
