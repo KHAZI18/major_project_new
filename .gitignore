@@ -39,3 +39,6 @@ data/dkt_sequences.npz
 !data/sample/
 !data/sample/*.parquet
 !data/sample/*.npz
+
+# Env files / secrets — root .env and server/.env (one .env lives in the repo root)
+.env

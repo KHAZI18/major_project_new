@@ -10,6 +10,7 @@ import { Users, Activity, Target, TrendingUp, Star, AlertTriangle, Download, Che
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { statusFromMastery } from '../engine/teacherSource';
+import { API_BASE } from '../lib/apiBase';
 import MasteryHeatmap from '../components/MasteryHeatmap';
 import WeaknessAlerts from '../components/WeaknessAlerts';
 import FairRankTable from '../components/FairRankTable';
@@ -108,7 +109,7 @@ export default function TeacherDashboard() {
     // [{ id, name, attempts, mastery }] — NOT a { students: [...] } envelope.
     let masteryById = {};
     try {
-      const mResp = await fetch('http://localhost:5000/api/teacher/class-mastery', {
+      const mResp = await fetch(`${API_BASE}/teacher/class-mastery`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (mResp.ok) {
@@ -128,7 +129,7 @@ export default function TeacherDashboard() {
       console.warn('class-mastery unavailable, falling back to XP status', e);
     }
     try {
-      const resp = await fetch('http://localhost:5000/api/teacher/students', {
+      const resp = await fetch(`${API_BASE}/teacher/students`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (resp.ok) {

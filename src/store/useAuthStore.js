@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { API_BASE } from '../lib/apiBase';
 
 const STORAGE_KEY = 'mv_auth';
 
@@ -21,7 +22,7 @@ export const useAuthStore = create((set, get) => ({
 
   async signup(role, userData) {
     try {
-      const resp = await fetch('http://localhost:5000/api/auth/signup', {
+      const resp = await fetch(`${API_BASE}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...userData, role }),
@@ -49,7 +50,7 @@ export const useAuthStore = create((set, get) => ({
         return { success: true };
       }
 
-      const resp = await fetch('http://localhost:5000/api/auth/login', {
+      const resp = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: userData.email, password: userData.password }),
