@@ -41,12 +41,48 @@ export function resetEngine() {
   return state;
 }
 
-// Hydrate the singleton from IndexedDB (call once at app start).
+// Clear the engine AND its IndexedDB cache — used when a DIFFERENT user logs in on
+// this device, so one user's local cache never bleeds into another's.
+export async function clearEngine() {
+  state = emptyState();
+  await saveMasteryState(state);
+  return state;
+}
+
+// Hydrate the singleton from IndexedDB (call once at app start; offline cache).
 export async function initEngine() {
   await ensureBackendReady();          // BKT: no-op | DKT: loads the tfjs model
   const saved = await loadMasteryState();
   state = saved ? { ...emptyState(), ...saved } : emptyState();
   return state;
+}
+
+// MERGE a server-provided mastery snapshot into the CURRENT engine state (which the
+// caller has already loaded from the IndexedDB cache via initEngine). We balance both
+// sources per-skill: keep whichever side has MORE attempts — i.e. more recent/complete
+// practice. So a fresh device (local empty) takes the server's data, a student who
+// played offline keeps their un-synced local progress, and the two reconcile skill by
+// skill. Persists the merged result back to IndexedDB. Returns true if server had data.
+export async function hydrateEngineFromServer(masteryState) {
+  const server = masteryState || {};
+  const serverBelief = server.belief || {};
+  if (Object.keys(serverBelief).length === 0) return false; // nothing on server → keep local
+
+  const s = getState();              // current = local cache (loaded by initEngine)
+  const serverAttempts = server.attempts || {};
+  for (const skill of Object.keys(serverBelief)) {
+    const localN = s.attempts[skill] || 0;
+    const serverN = serverAttempts[skill] || 0;
+    if (serverN >= localN) {         // server at least as fresh → take server's side
+      s.belief[skill] = serverBelief[skill];
+      s.attempts[skill] = serverN;
+      if (server.lastPracticed?.[skill] != null) s.lastPracticed[skill] = server.lastPracticed[skill];
+      if (server.review?.[skill] != null) s.review[skill] = server.review[skill];
+    }
+    // else: local has more attempts (un-synced offline practice) → keep local
+  }
+  await saveMasteryState(s);
+  return true;
 }
 
 export function getMastery(skillId) {

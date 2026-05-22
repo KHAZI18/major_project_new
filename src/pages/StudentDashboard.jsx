@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 // `motion` is used as <motion.div> JSX; the repo's eslint config lacks
 // react/jsx-uses-vars so it can't detect member-expression JSX usage.
 // eslint-disable-next-line no-unused-vars
@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { usePlayerStore } from '../store/usePlayerStore';
 import { useAuthStore } from '../store/useAuthStore';
+import { bootstrapFromServer } from '../lib/sessionHydrate';
 import DailyMissions from '../components/DailyMissions';
 import FairLeaderboard from '../components/FairLeaderboard';
 import SuggestedForYou from '../components/SuggestedForYou';
@@ -192,8 +193,19 @@ function ZoneCard({ zone, index }) {
 
 export default function StudentDashboard() {
   const { xp, level, coins, streak, avatar, badges, history = [] } = usePlayerStore();
-  const { user } = useAuthStore();
+  const { user, token, role } = useAuthStore();
   const userGrade = user?.grade || 2;
+
+  // Web login: pull this student's saved progress from MongoDB and merge it into the
+  // engine (balanced with the local IndexedDB cache via initEngine), then re-render so
+  // the ML widgets below (Suggested-for-you, mastery chart, reviews) reflect it.
+  const userId = user?._id || user?.id;
+  const [, bumpHydrate] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    bootstrapFromServer(token, role, userId).then(() => { if (alive) bumpHydrate((n) => n + 1); });
+    return () => { alive = false; };
+  }, [token, role, userId]);
 
   const xpForLevel = (lvl) => Math.pow(lvl, 2) * 100;
   const xpForPrev  = (lvl) => Math.pow(Math.max(1, lvl - 1), 2) * 100;
