@@ -25,6 +25,7 @@ export default function Login() {
   const [shake, setShake] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
   const navigate  = useNavigate();
   const { login, signup, googleAuth } = useAuthStore();
   const { checkStreak } = usePlayerStore();
@@ -55,6 +56,12 @@ export default function Login() {
     if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
       setIsInstalled(true);
     }
+  }, []);
+
+  // Always show install button in development for testing
+  useEffect(() => {
+    // In dev mode, show install button if user might want to install
+    setShowInstall(true);
   }, []);
 
   const triggerError = (msg) => {
@@ -190,8 +197,8 @@ export default function Login() {
                 </h1>
                 <p className="text-slate-500 font-medium text-sm px-4">Join thousands of students and teachers in a gamified learning adventure!</p>
                 
-                {/* Install App Button - Only show if not installed and prompt is available */}
-                {!isInstalled && installPrompt && (
+                {/* Install App Button */}
+                {showInstall && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
                     <button
                       onClick={handleInstallClick}
@@ -231,8 +238,8 @@ export default function Login() {
                 ))}
               </div>
               
-              {/* Install App Button - Only show if not installed and prompt is available */}
-              {!isInstalled && installPrompt && (
+              {/* Install App Button */}
+              {showInstall && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 text-center">
                   <p className="text-xs font-medium text-slate-400 mb-3 uppercase tracking-wider">Get the best experience</p>
                   <button
@@ -385,8 +392,8 @@ export default function Login() {
                       />
                     </div>
                     
-                    {/* Install App Button - Only show if not installed and prompt is available */}
-                    {!isInstalled && installPrompt && (
+                    {/* Install App Button */}
+                    {showInstall && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 text-center">
                         <button
                           onClick={handleInstallClick}
