@@ -1,0 +1,48 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+node_modules
+dist
+dist-ssr
+
+# Editor files
+.vscode/*
+.idea
+.DS_Store
+.sw?
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Env files
+.env
+
+# Frontend files
+src/
+public/
+*.jsx
+*.tsx
+*.js
+vite.config.js
+index.html
+package.json
+package-lock.json
+
+# Tests
+tests/
+*.test.js
+vitest.config.js
+
+# Scripts not related to backend
+scripts/
+*.py
+
+# Documentation
+docs/
+*.md
+!README.md
