@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/useAuthStore';
@@ -15,6 +15,7 @@ const AVATAR_BG = {
   '🧒🏽':'from-amber-400 to-yellow-500','👧🏽':'from-cyan-400 to-teal-500',
 };
 
+// Check if PWA install prompt is available
 export default function Login() {
   const [mode, setMode] = useState('select'); // 'select' | 'form'
   const [role, setRole] = useState(null);
@@ -22,13 +23,59 @@ export default function Login() {
   const [form, setForm] = useState({ name: '', grade: 3, avatar: '🧒', email: '', password: '' });
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const navigate  = useNavigate();
   const { login, signup, googleAuth } = useAuthStore();
   const { checkStreak } = usePlayerStore();
 
+  // Listen for PWA install prompt event
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  // Check if app is already installed
+  useEffect(() => {
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+  }, []);
+
   const triggerError = (msg) => {
     setError(msg); setShake(true);
     setTimeout(() => setShake(false), 600);
+  };
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+
+    try {
+      // Show the install prompt
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        setInstallPrompt(null);
+      }
+    } catch (error) {
+      console.error('Install prompt error:', error);
+    }
   };
 
   const handleGoogleSuccess = async (credentialResponse) => {
@@ -142,6 +189,19 @@ export default function Login() {
                   Math <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF7052] to-[#FFCA42]">Village</span>
                 </h1>
                 <p className="text-slate-500 font-medium text-sm px-4">Join thousands of students and teachers in a gamified learning adventure!</p>
+                
+                {/* Install App Button - Only show if not installed and prompt is available */}
+                {!isInstalled && installPrompt && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
+                    <button
+                      onClick={handleInstallClick}
+                      className="flex items-center justify-center gap-2 mx-auto px-6 py-2.5 rounded-full bg-gradient-to-r from-[#FF7052] to-[#FFCA42] text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all active:scale-95"
+                    >
+                      <span>📲</span>
+                      <span>Install App</span>
+                    </button>
+                  </motion.div>
+                )}
               </div>
               
               {/* Desktop Header */}
@@ -170,6 +230,20 @@ export default function Login() {
                   </motion.button>
                 ))}
               </div>
+              
+              {/* Install App Button - Only show if not installed and prompt is available */}
+              {!isInstalled && installPrompt && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 text-center">
+                  <p className="text-xs font-medium text-slate-400 mb-3 uppercase tracking-wider">Get the best experience</p>
+                  <button
+                    onClick={handleInstallClick}
+                    className="flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-[#FF7052] to-[#FFCA42] text-white font-black text-sm shadow-lg hover:shadow-xl transition-all active:scale-95"
+                  >
+                    <span>📲</span>
+                    <span>Install Math Village</span>
+                  </button>
+                </motion.div>
+              )}
             </motion.div>
           )}
 
@@ -310,6 +384,19 @@ export default function Login() {
                         width="100%"
                       />
                     </div>
+                    
+                    {/* Install App Button - Only show if not installed and prompt is available */}
+                    {!isInstalled && installPrompt && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 text-center">
+                        <button
+                          onClick={handleInstallClick}
+                          className="flex items-center justify-center gap-2 mx-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7052] to-[#FFCA42] text-white font-black text-sm shadow-md hover:shadow-lg transition-all active:scale-95"
+                        >
+                          <span>📲</span>
+                          <span>Install App</span>
+                        </button>
+                      </motion.div>
+                    )}
                   </motion.form>
                 </div>
               </div>
