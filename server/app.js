@@ -58,7 +58,15 @@ export function createApp() {
   const app = express();
   // Default mock client ID so backend doesn't crash if env is missing
   const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID || 'dummy-client-id');
-  app.use(cors());
+  
+  // CORS configuration for production (Vercel frontend + Render backend)
+  const corsOptions = {
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  };
+  app.use(cors(corsOptions));
   app.use(express.json());
 
   // Auth Middleware (verbatim from the original server.js — verifies a valid JWT only).
