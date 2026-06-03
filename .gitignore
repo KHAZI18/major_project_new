@@ -27,7 +27,6 @@ src/
 public/
 *.jsx
 *.tsx
-*.js
 vite.config.js
 index.html
 package.json
