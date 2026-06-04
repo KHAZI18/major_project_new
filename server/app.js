@@ -4,6 +4,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 import { User, Progress } from './models.js';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Game ID to display name mapping for enriching history entries
 const GAME_ID_TO_NAME = {
@@ -68,6 +71,9 @@ export function createApp() {
   };
   app.use(cors(corsOptions));
   app.use(express.json());
+
+  // Serve static files from dist/ (production build)
+  app.use(express.static(resolve(__dirname, '../dist')));
 
   // Auth Middleware (verbatim from the original server.js — verifies a valid JWT only).
   const auth = async (req, res, next) => {
@@ -355,6 +361,11 @@ export function createApp() {
     } catch (e) {
       res.status(500).send();
     }
+  });
+
+  // Serve index.html for any unmatched routes (client-side routing)
+  app.get('*', (req, res) => {
+    res.sendFile(resolve(__dirname, '../dist/index.html'));
   });
 
   return app;

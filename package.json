@@ -5,8 +5,10 @@
   "description": "Backend for Math Village gamified learning platform",
   "private": true,
   "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
     "start": "cd server && node server.js",
-    "dev": "cd server && nodemon server.js",
     "test": "cd server && vitest run"
   },
   "dependencies": {
