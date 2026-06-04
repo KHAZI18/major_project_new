@@ -24,32 +24,58 @@ export default function Login() {
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
-  const [isInstalled, setIsInstalled] = useState(false);
   const [showInstall, setShowInstall] = useState(false);
   const navigate  = useNavigate();
   const { login, signup, googleAuth } = useAuthStore();
   const { checkStreak } = usePlayerStore();
 
   // Listen for PWA install prompt event
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-    };
+useEffect(() => {
+  const handleBeforeInstallPrompt = (e) => {
+    e.preventDefault();
 
-    const handleAppInstalled = () => {
-      setIsInstalled(true);
-      setInstallPrompt(null);
-    };
+    console.log("PWA install available");
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+    setInstallPrompt(e);
+    setShowInstall(true);
+  };
 
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
+  const handleAppInstalled = () => {
+    console.log("PWA installed");
+
+    setInstallPrompt(null);
+    setShowInstall(false);
+  };
+
+  window.addEventListener(
+    "beforeinstallprompt",
+    handleBeforeInstallPrompt
+  );
+
+  window.addEventListener(
+    "appinstalled",
+    handleAppInstalled
+  );
+
+  if (
+    window.matchMedia &&
+    window.matchMedia("(display-mode: standalone)").matches
+  ) {
+    setShowInstall(false);
+  }
+
+  return () => {
+    window.removeEventListener(
+      "beforeinstallprompt",
+      handleBeforeInstallPrompt
+    );
+
+    window.removeEventListener(
+      "appinstalled",
+      handleAppInstalled
+    );
+  };
+}, []);
 
   // Check if app is already installed
   useEffect(() => {
@@ -70,20 +96,29 @@ export default function Login() {
   };
 
   const handleInstallClick = async () => {
-    if (!installPrompt) return;
+  if (!installPrompt) {
+    alert(
+      "Install prompt not available. Check manifest.json and service worker registration."
+    );
+    return;
+  }
 
-    try {
-      // Show the install prompt
-      installPrompt.prompt();
-      const { outcome } = await installPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        setInstallPrompt(null);
-      }
-    } catch (error) {
-      console.error('Install prompt error:', error);
+  try {
+    await installPrompt.prompt();
+
+    const { outcome } = await installPrompt.userChoice;
+
+    console.log("Install result:", outcome);
+
+    if (outcome === "accepted") {
+      setShowInstall(false);
     }
-  };
+
+    setInstallPrompt(null);
+  } catch (err) {
+    console.error("Install failed:", err);
+  }
+};
 
   const handleGoogleSuccess = async (credentialResponse) => {
     const result = await googleAuth(role, credentialResponse.credential);
