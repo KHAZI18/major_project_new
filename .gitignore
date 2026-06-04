@@ -22,26 +22,18 @@ __pycache__/
 # Env files
 .env
 
-# Frontend files
-src/
-public/
-*.jsx
-*.tsx
-vite.config.js
-index.html
-package.json
-package-lock.json
+# Frontend files (root-level only — frontend moved to major_project_frontend/)
+/src/
+/public/
+/vite.config.js
+/index.html
+/package.json
+/package-lock.json
 
-# Tests
-tests/
-*.test.js
-vitest.config.js
+# Tests (root-level only)
+/tests/
+# Scripts (root-level only — moved to major_project_frontend/scripts/)
+/scripts/
 
-# Scripts not related to backend
-scripts/
-*.py
-
-# Documentation
-docs/
-*.md
-!README.md
+# Documentation (root-level only)
+/docs/

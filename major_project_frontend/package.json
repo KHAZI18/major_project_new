@@ -1,0 +1,45 @@
+{
+  "name": "math-village-server",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Backend for Math Village gamified learning platform",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "start": "cd server && node server.js",
+    "test": "cd server && vitest run"
+  },
+  "dependencies": {
+    "@react-oauth/google": "^0.13.5",
+    "@tensorflow/tfjs": "^4.22.0",
+    "bcryptjs": "^2.4.3",
+    "canvas-confetti": "^1.9.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "framer-motion": "^12.40.0",
+    "google-auth-library": "^10.6.2",
+    "idb": "^8.0.3",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^1.17.0",
+    "mongoose": "^8.4.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-is": "^19.2.7",
+    "react-router-dom": "^6.26.0",
+    "recharts": "^3.8.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "mongodb-memory-server": "^11.1.0",
+    "nodemon": "^3.1.0",
+    "supertest": "^7.2.2",
+    "vite": "^5.4.0",
+    "vite-plugin-pwa": "^0.21.0",
+    "vitest": "^4.1.7"
+  }
+}
