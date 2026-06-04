@@ -17,13 +17,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
         name: 'Math Village — Gamified Learning',
         short_name: 'Math Village',
         description: 'An offline-first gamified mathematics learning platform for rural students (Grades 2–6).',
-        theme_color: '#f97316',
-        background_color: '#0f172a',
+        theme_color: '#FF7052',
+        background_color: '#FF7052',
         display: 'standalone',
         orientation: 'portrait-primary',
         start_url: '/',
@@ -32,25 +32,27 @@ export default defineConfig({
         categories: ['education', 'games'],
         icons: [
           {
-            src: '/vite.svg',
+            src: '/icon-192.png',
             sizes: '192x192',
-            type: 'image/svg+xml'
+            type: 'image/png'
           },
           {
-            src: '/vite.svg',
+            src: '/icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml'
+            type: 'image/png'
           },
           {
-            src: '/vite.svg',
+            src: '/icon-512.png',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/png',
             purpose: 'maskable'
           }
         ],
         screenshots: [],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         // TensorFlow.js (the optional DKT backend) bundles to a chunk >2 MiB; raise
         // the precache limit so the offline-first service worker can cache it.
