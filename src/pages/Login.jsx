@@ -25,6 +25,7 @@ export default function Login() {
   const [installPrompt, setInstallPrompt] = useState(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [showManualGuide, setShowManualGuide] = useState(false);
   const navigate  = useNavigate();
   const { login, signup, googleAuth } = useAuthStore();
   const { checkStreak } = usePlayerStore();
@@ -74,7 +75,11 @@ export default function Login() {
         setInstallPrompt(null);
       } catch (err) {
         console.error('Install failed:', err);
+        setShowManualGuide(true);
       }
+    } else {
+      // No native prompt available — show manual instructions
+      setShowManualGuide(true);
     }
   };
 
@@ -170,6 +175,54 @@ export default function Login() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Android / Desktop manual install guide modal ── */}
+      <AnimatePresence>
+        {showManualGuide && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowManualGuide(false)}
+          >
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-sm bg-white rounded-[28px] p-6 shadow-2xl"
+            >
+              <div className="text-center mb-5">
+                <div className="text-4xl mb-2">📲</div>
+                <h3 className="font-display font-black text-xl text-[#1e293b]">Install Math Village</h3>
+                <p className="text-slate-500 text-sm mt-1">Follow these steps to add the app to your device</p>
+              </div>
+              <ol className="space-y-3 mb-6">
+                {[
+                  { icon: '⋮', text: 'Tap the browser menu button (three dots) in the top-right corner' },
+                  { icon: '➕', text: 'Look for "Install app" or "Add to Home Screen" and tap it' },
+                  { icon: '✅', text: 'Tap "Install" or "Add" to confirm' },
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-3 bg-[#F7F9FC] rounded-2xl p-3">
+                    <span className="w-7 h-7 shrink-0 flex items-center justify-center rounded-full bg-[#FF7052] text-white text-xs font-black">{i + 1}</span>
+                    <p className="text-sm font-medium text-[#1e293b] leading-snug">{step.text}</p>
+                  </li>
+                ))}
+              </ol>
+              <p className="text-center text-xs text-slate-400 mb-4">Works on Chrome, Edge, and Samsung Internet</p>
+              <button
+                onClick={() => setShowManualGuide(false)}
+                className="w-full py-3 rounded-2xl font-black text-sm text-white bg-gradient-to-r from-[#FF7052] to-[#FFCA42] shadow-md active:scale-95 transition-all"
+              >
+                Got it!
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── LEFT PANEL (Hero / Branding) - Hidden on Mobile ── */}
       <div className="hidden lg:flex w-1/2 relative bg-[#F7F9FC] flex-col justify-center px-20 xl:px-28 overflow-hidden border-r border-slate-100">
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#FFF1EE]/60 to-[#E8F9F8]/60" />
