@@ -4,7 +4,6 @@ logs
 npm-debug.log*
 
 node_modules
-dist
 dist-ssr
 
 # Editor files
@@ -22,7 +21,7 @@ __pycache__/
 # Env files
 .env
 
-# Backend
+# Backend tests
 server/test/*.test.js
 
 # Documentation (root-level only)

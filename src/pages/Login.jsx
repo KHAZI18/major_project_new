@@ -23,22 +23,28 @@ export default function Login() {
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);
-  const [showInstall, setShowInstall] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
   const navigate  = useNavigate();
   const { login, signup, googleAuth } = useAuthStore();
   const { checkStreak } = usePlayerStore();
 
-  // Listen for PWA install prompt event
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
   useEffect(() => {
+    // Already running as installed PWA
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+      setIsInstalled(true);
+    }
+
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setInstallPrompt(e);
-      setShowInstall(true);
     };
 
     const handleAppInstalled = () => {
       setInstallPrompt(null);
-      setShowInstall(false);
+      setIsInstalled(true);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -56,22 +62,19 @@ export default function Login() {
   };
 
   const handleInstallClick = async () => {
-    if (!installPrompt) {
-      alert('Install prompt not available. Please use a browser that supports PWA installation.');
+    if (isIOS) {
+      setShowIOSGuide(true);
       return;
     }
-
-    try {
-      await installPrompt.prompt();
-      const { outcome } = await installPrompt.userChoice;
-
-      if (outcome === 'accepted') {
-        setShowInstall(false);
+    if (installPrompt) {
+      try {
+        await installPrompt.prompt();
+        const { outcome } = await installPrompt.userChoice;
+        if (outcome === 'accepted') setIsInstalled(true);
+        setInstallPrompt(null);
+      } catch (err) {
+        console.error('Install failed:', err);
       }
-
-      setInstallPrompt(null);
-    } catch (err) {
-      console.error('Install failed:', err);
     }
   };
 
@@ -121,6 +124,52 @@ export default function Login() {
 
   return (
     <div className="min-h-screen w-full flex bg-white">
+
+      {/* ── iOS "Add to Home Screen" guide modal ── */}
+      <AnimatePresence>
+        {showIOSGuide && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center p-4 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowIOSGuide(false)}
+          >
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              transition={{ type: 'spring', damping: 22, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-sm bg-white rounded-[28px] p-6 shadow-2xl"
+            >
+              <div className="text-center mb-5">
+                <div className="text-4xl mb-2">📲</div>
+                <h3 className="font-display font-black text-xl text-[#1e293b]">Install Math Village</h3>
+                <p className="text-slate-500 text-sm mt-1">Add to your home screen for the best experience</p>
+              </div>
+              <ol className="space-y-3 mb-6">
+                {[
+                  { icon: '⬆️', text: 'Tap the Share button at the bottom of your browser' },
+                  { icon: '➕', text: 'Scroll down and tap "Add to Home Screen"' },
+                  { icon: '✅', text: 'Tap "Add" to confirm' },
+                ].map((step, i) => (
+                  <li key={i} className="flex items-start gap-3 bg-[#F7F9FC] rounded-2xl p-3">
+                    <span className="text-xl shrink-0">{step.icon}</span>
+                    <p className="text-sm font-medium text-[#1e293b] leading-snug">{step.text}</p>
+                  </li>
+                ))}
+              </ol>
+              <button
+                onClick={() => setShowIOSGuide(false)}
+                className="w-full py-3 rounded-2xl font-black text-sm text-white bg-gradient-to-r from-[#FF7052] to-[#FFCA42] shadow-md active:scale-95 transition-all"
+              >
+                Got it!
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* ── LEFT PANEL (Hero / Branding) - Hidden on Mobile ── */}
       <div className="hidden lg:flex w-1/2 relative bg-[#F7F9FC] flex-col justify-center px-20 xl:px-28 overflow-hidden border-r border-slate-100">
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-[#FFF1EE]/60 to-[#E8F9F8]/60" />
@@ -177,7 +226,7 @@ export default function Login() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white/80 lg:bg-transparent backdrop-blur-xl lg:backdrop-blur-none p-6 sm:p-8 lg:p-0 rounded-[32px] lg:rounded-none shadow-[0_8px_30px_rgb(0,0,0,0.06)] lg:shadow-none border border-white/50 lg:border-none"
             >
-              {/* Mobile Mobile Logo */}
+              {/* Mobile Logo */}
               <div className="lg:hidden text-center mb-10 pt-4">
                 <motion.div animate={{ y: [0,-8,0], rotate: [0, 4, -4, 0] }} transition={{ duration: 4, repeat: Infinity }} className="text-7xl mb-6 block drop-shadow-[0_10px_10px_rgba(0,0,0,0.15)]">
                   🏘️
@@ -186,19 +235,6 @@ export default function Login() {
                   Math <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF7052] to-[#FFCA42]">Village</span>
                 </h1>
                 <p className="text-slate-500 font-medium text-sm px-4">Join thousands of students and teachers in a gamified learning adventure!</p>
-                
-                {/* Install App Button - Only show if prompt is available */}
-                {showInstall && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6">
-                    <button
-                      onClick={handleInstallClick}
-                      className="flex items-center justify-center gap-2 mx-auto px-6 py-2.5 rounded-full bg-gradient-to-r from-[#FF7052] to-[#FFCA42] text-white font-bold text-sm shadow-lg hover:shadow-xl transition-all active:scale-95"
-                    >
-                      <span>📲</span>
-                      <span>Install App</span>
-                    </button>
-                  </motion.div>
-                )}
               </div>
               
               {/* Desktop Header */}
@@ -228,16 +264,23 @@ export default function Login() {
                 ))}
               </div>
               
-              {/* Install App Button - Only show if prompt is available */}
-              {showInstall && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 text-center">
-                  <p className="text-xs font-medium text-slate-400 mb-3 uppercase tracking-wider">Get the best experience</p>
+              {/* Install button — always visible unless already installed as PWA */}
+              {!isInstalled && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-5">
                   <button
                     onClick={handleInstallClick}
-                    className="flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-[#FF7052] to-[#FFCA42] text-white font-black text-sm shadow-lg hover:shadow-xl transition-all active:scale-95"
+                    className="w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-2xl border-2 border-dashed border-[#FF7052]/30 bg-[#FFF1EE]/50 hover:bg-[#FFF1EE] hover:border-[#FF7052]/50 transition-all group active:scale-95"
                   >
-                    <span>📲</span>
-                    <span>Install Math Village</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">📲</span>
+                      <div className="text-left">
+                        <p className="text-xs font-black text-[#FF7052] uppercase tracking-wider">Install App</p>
+                        <p className="text-[11px] text-slate-400 font-medium">
+                          {isIOS ? 'Add to Home Screen' : 'Get the best experience'}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[#FF7052] text-lg group-hover:translate-x-0.5 transition-transform">→</span>
                   </button>
                 </motion.div>
               )}
@@ -381,19 +424,6 @@ export default function Login() {
                         width="100%"
                       />
                     </div>
-                    
-                    {/* Install App Button - Only show if prompt is available */}
-                    {showInstall && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 text-center">
-                        <button
-                          onClick={handleInstallClick}
-                          className="flex items-center justify-center gap-2 mx-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#FF7052] to-[#FFCA42] text-white font-black text-sm shadow-md hover:shadow-lg transition-all active:scale-95"
-                        >
-                          <span>📲</span>
-                          <span>Install App</span>
-                        </button>
-                      </motion.div>
-                    )}
                   </motion.form>
                 </div>
               </div>
